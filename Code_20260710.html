@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>转盘修复版 指针与弹窗完全匹配</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Microsoft Yahei", sans-serif;
+}
+body {
+  background: #f5f7fa;
+  padding: 20px;
+}
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: none;
+  grid-template-columns: 1fr 400px;
+  gap: 30px;
+}
+@media (max-width: 900px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+}
+.wheel-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.wheel-wrap {
+  position: relative;
+  width: 400px;
+  height: 400px;
+}
+#wheelCanvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 8px #ff6b6b, 0 0 30px rgba(255, 107, 107, 0.4);
+}
+.pointer {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 20px solid transparent;
+  border-right: 20px solid transparent;
+  border-top: 40px solid #ff3838;
+  z-index: 9;
+}
+#drawBtn {
+  margin-top: 30px;
+  padding: 14px 50px;
+  font-size: 20px;
+  background: linear-gradient(135deg, #ff4757, #ff6348);
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+#drawBtn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+#drawBtn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+.limit-tip {
+  margin-top: 12px;
+  color: #2385bb;
+  font-size: 16px;
+}
+.setting-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+}
+h3 {
+  margin-bottom: 15px;
+  color: #222;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+.prize-item {
+  display: grid;
+  grid-template-columns: 1fr 80px 60px 40px;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.color-input {
+  width: 100%;
+  height: 35px;
+  border: none;
+  cursor: pointer;
+}
+.del-btn {
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  height: 35px;
+  cursor: pointer;
+}
+.add-btn {
+  width: 100%;
+  padding: 10px;
+  margin: 15px 0;
+  background: #2ed573;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.tip {
+  color: #777;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.key-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.key-box {
+  background: #fff;
+  padding: 40px 30px;
+  border-radius: 12px;
+  text-align: center;
+  width: 340px;
+}
+.key-box h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+#keyInput {
+  width: 100%;
+  font-size: 20px;
+  text-align: center;
+  letter-spacing: 6px;
+  margin-bottom: 15px;
+}
+#submitKey {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.err-text {
+  color: red;
+  margin-top:10px;
+  display:none;
+}
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9998;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: #fff;
+  padding: 40px 60px;
+  border-radius: 12px;
+  text-align: center;
+}
+.modal h2 {
+  font-size: 28px;
+  margin-bottom: 20px;
+  color: #ff4757;
+}
+.modal p {
+  font-size: 22px;
+  margin-bottom: 30px;
+}
+.reset-btn {
+  padding:10px 25px;
+  background:#007bff;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  font-size:16px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+<div class="key-modal" id="keyModal">
+  <div class="key-box">
+    <h2>输入卡密获取1次抽奖机会</h2>
+    <input type="text" id="keyInput" placeholder="6位数字卡密" maxlength="6">
+    <button id="submitKey">验证卡密</button>
+    <p class="err-text" id="keyErr">卡密无效或已使用！</p>
+  </div>
+</div>
+
+<div class="container" id="mainBox">
+  <div class="wheel-box">
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <canvas id="wheelCanvas" width="400" height="400"></canvas>
+    </div>
+    <button id="drawBtn">开始抽奖</button>
+    <p class="limit-tip" id="limitTip">多张未使用卡密可多次抽奖，每张卡密仅1次机会</p>
+  </div>
+
+  <div class="setting-panel">
+    <h3>奖项概率设置</h3>
+    <div id="prizeList"></div>
+    <button class="add-btn" id="addPrize">新增奖项</button>
+    <div class="tip">
+      说明：转盘每块区域大小完全相同，中奖概率仅由权重控制<br>
+      规则：一张卡密=一次抽奖，换新卡密可继续抽
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="winModal">
+  <div class="modal-content">
+    <h2>恭喜中奖！</h2>
+    <p id="winText"></p>
+    <button class="reset-btn" id="resetNewKey">使用新卡密继续抽奖</button>
+  </div>
+</div>
+
+<script>
+const keyList = [
+"159357","246801","357912","468123","579234","681345","792456","813567","924678","135789",
+"246901","358012","469123","570234","681345","792456","813567","924678","135780","246891",
+"357012","468129","579230","680341","791452","812563","923674","134785","245896","356907",
+"467018","578129","689230","790341","811452","922563","133674","244785","355896","466907",
+"577018","688129","799230","112233","223344","334455","445566","556677","667788","778899",
+"121314","232425","343536","454647","565758","676869","787980","898091","909102","113355",
+"224466","335577","446688","557799","122334","233445","344556","455667","566778","677889",
+"151937","242801","353912","464123","575234","686345","797456","818567","929678","131789",
+"242901","353012","464129","575230","686341","797452","818563","929674","131780","242891",
+"987654","876543","765432","654321","543210","192837","283746","374659","465928","592817"
+];
+
+const canvas = document.getElementById("wheelCanvas");
+const ctx = canvas.getContext("2d");
+const drawBtn = document.getElementById("drawBtn");
+const prizeListDom = document.getElementById("prizeList");
+const addPrizeBtn = document.getElementById("addPrize");
+const keyModal = document.getElementById("keyModal");
+const keyInput = document.getElementById("keyInput");
+const submitKey = document.getElementById("submitKey");
+const keyErr = document.getElementById("keyErr");
+const mainBox = document.getElementById("mainBox");
+const winModal = document.getElementById("winModal");
+const winText = document.getElementById("winText");
+const resetNewKey = document.getElementById("resetNewKey");
+
+let wheelAngle = 0;
+let isRolling = false;
+let currentKey = "";
+
+let prizeData = [
+  { name: "一等奖", weight: 1, color: "#ff3838" },
+  { name: "二等奖", weight: 3, color: "#ffdd59" },
+  { name: "三等奖", weight: 6, color: "#2ed573" },
+  { name: "谢谢参与", weight: 90, color: "#a4b0be" }
+];
+
+// 缓存指针固定偏移：12点钟 = -90度 = -π/2 弧度
+const POINTER_OFFSET = -Math.PI / 2;
+
+function getUsedKeys() {
+  const data = localStorage.getItem("usedKeys");
+  return data ? JSON.parse(data) : [];
+}
+
+function setKeyUsed(key) {
+  const usedArr = getUsedKeys();
+  usedArr.push(key);
+  localStorage.setItem("usedKeys", JSON.stringify(usedArr));
+}
+
+function reInputKey() {
+  winModal.style.display = "none";
+  currentKey = "";
+  keyInput.value = "";
+  keyErr.style.display = "none";
+  keyModal.style.display = "flex";
+}
+
+function renderPrizeList() {
+  prizeListDom.innerHTML = "";
+  prizeData.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "prize-item";
+    const nameInput = document.createElement("input");
+    nameInput.value = item.name;
+    nameInput.addEventListener("input", (e)=>{
+      prizeData[index].name = e.target.value;
+      drawWheel();
+    })
+    const weightInput = document.createElement("input");
+    weightInput.type = "number";
+    weightInput.min = 1;
+    weightInput.value = item.weight;
+    weightInput.addEventListener("input", (e)=>{
+      prizeData[index].weight = Number(e.target.value);
+      drawWheel();
+    })
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.className = "color-input";
+    colorInput.value = item.color;
+    colorInput.addEventListener("input", (e)=>{
+      prizeData[index].color = e.target.value;
+      drawWheel();
+    })
+    const delBtn = document.createElement("button");
+    delBtn.className = "del-btn";
+    delBtn.innerText = "-";
+    delBtn.addEventListener("click", ()=>{
+      if (prizeData.length <= 2) {
+        alert("至少保留2个奖项！");
+        return;
+      }
+      prizeData.splice(index, 1);
+      renderPrizeList();
+    })
+    div.appendChild(nameInput);
+    div.appendChild(weightInput);
+    div.appendChild(colorInput);
+    div.appendChild(delBtn);
+    prizeListDom.appendChild(div);
+  });
+  drawWheel();
+}
+
+// 绘制转盘（修正坐标系偏移）
+function drawWheel() {
+  const count = prizeData.length;
+  const radius = canvas.width / 2;
+  const segAngle = Math.PI * 2 / count;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(radius, radius);
+  // 全局旋转转盘
+  ctx.rotate(wheelAngle);
+  // 扇形从0弧度（右）逆时针绘制
+  let startRad = 0;
+  prizeData.forEach(item => {
+    const endRad = startRad + segAngle;
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.arc(0,0,radius-8, startRad, endRad);
+    ctx.closePath();
+    ctx.fillStyle = item.color;
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 文字居中
+    ctx.save();
+    const textCenter = startRad + segAngle / 2;
+    ctx.rotate(textCenter);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 16px Microsoft Yahei";
+    ctx.textAlign = "center";
+    ctx.fillText(item.name, radius * 0.55, 8);
+    ctx.restore();
+    startRad = endRad;
+  })
+  ctx.restore();
+}
+
+function runLottery() {
+  if (isRolling) return;
+  isRolling = true;
+  drawBtn.disabled = true;
+
+  // 1. 权重随机选出中奖索引（唯一真值，弹窗以此为准）
+  const totalWeight = prizeData.reduce((s,i)=>s+i.weight,0);
+  let rnd = Math.random() * totalWeight;
+  let hitIndex = 0;
+  for(let i=0; i<prizeData.length; i++){
+    rnd -= prizeData[i].weight;
+    if(rnd <= 0){
+      hitIndex = i;
+      break;
+    }
+  }
+
+  const segAngle = Math.PI * 2 / prizeData.length;
+  // 2. 核心修复：计算精准目标旋转角度，补偿顶部指针偏移
+  // 扇形中心原始弧度
+  const sectorCenterRad = hitIndex * segAngle + segAngle / 2;
+  // 总旋转 = 8整圈 + 补偿指针偏移，让扇形中心对准12点指针
+  const targetRad = Math.PI * 2 * 8 + (POINTER_OFFSET - sectorCenterRad);
+
+  // 动画减速
+  function animate(){
+    if(!isRolling) return;
+    const diff = targetRad - wheelAngle;
+    if(Math.abs(diff) < 0.0005){
+      wheelAngle = targetRad;
+      drawWheel();
+      isRolling = false;
+      drawBtn.disabled = false;
+      setKeyUsed(currentKey);
+      // 弹窗严格使用提前算出的hitIndex，不会和视觉冲突
+      winText.innerText = prizeData[hitIndex].name;
+      winModal.style.display = "flex";
+      return;
+    }
+    wheelAngle += diff * 0.04;
+    drawWheel();
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+keyInput.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter") submitKey.click();
+})
+
+submitKey.addEventListener("click", ()=>{
+  const inputKey = keyInput.value.trim();
+  const usedKeys = getUsedKeys();
+  keyErr.style.display = "none";
+  if (!keyList.includes(inputKey)) {
+    keyErr.innerText = "卡密不存在！";
+    keyErr.style.display = "block";
+    return;
+  }
+  if (usedKeys.includes(inputKey)) {
+    keyErr.innerText = "该卡密已使用，请换新卡密！";
+    keyErr.style.display = "block";
+    return;
+  }
+  currentKey = inputKey;
+  keyModal.style.display = "none";
+  mainBox.style.display = "grid";
+  renderPrizeList();
+})
+
+addPrizeBtn.addEventListener("click", ()=>{
+  prizeData.push({
+    name: "新奖项",
+    weight: 10,
+    color: "#70a1ff"
+  });
+  renderPrizeList();
+})
+
+drawBtn.addEventListener("click", runLottery);
+resetNewKey.addEventListener("click", reInputKey);
+drawWheel();
+</script>
+</body>
+</html>
